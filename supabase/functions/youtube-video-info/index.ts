@@ -49,50 +49,90 @@ function formatDuration(duration: string): string {
 
 async function fetchYouTubeTranscript(videoId: string, languageCode: string = 'it'): Promise<{ transcript: string; transcriptWithTimestamps: string } | null> {
   try {
-    // Try to get transcript using YouTube's captions API
-    const captionsUrl = `https://www.youtube.com/api/timedtext?lang=${languageCode}&v=${videoId}&fmt=json3`;
+    const youtubeApiKey = Deno.env.get('YOUTUBE_API_KEY');
+    if (!youtubeApiKey) {
+      console.log('YouTube API key not found');
+      return null;
+    }
+
+    // First, get the list of available captions
+    const captionsListUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${youtubeApiKey}`;
     
-    const response = await fetch(captionsUrl);
-    if (!response.ok) {
-      console.log(`Transcript not available for language ${languageCode}, trying auto-generated`);
-      
-      // Try with auto-generated captions
-      const autoResponse = await fetch(`https://www.youtube.com/api/timedtext?lang=${languageCode}&v=${videoId}&fmt=json3&tlang=${languageCode}`);
-      if (!autoResponse.ok) {
-        console.log('No auto-generated transcript available');
-        return null;
-      }
-      
-      const autoData = await autoResponse.json();
-      if (!autoData?.events) return null;
-      
-      return processTranscriptData(autoData.events);
+    const captionsResponse = await fetch(captionsListUrl);
+    if (!captionsResponse.ok) {
+      console.log('Failed to fetch captions list');
+      return null;
     }
     
-    const data = await response.json();
-    if (!data?.events) return null;
+    const captionsData = await captionsResponse.json();
+    if (!captionsData.items || captionsData.items.length === 0) {
+      console.log('No captions available for this video');
+      return null;
+    }
     
-    return processTranscriptData(data.events);
+    // Find the desired language or fallback to first available
+    let selectedCaption = captionsData.items.find((caption: any) => 
+      caption.snippet.language === languageCode
+    );
+    
+    // If not found, try auto-generated captions
+    if (!selectedCaption) {
+      selectedCaption = captionsData.items.find((caption: any) => 
+        caption.snippet.language === languageCode && caption.snippet.trackKind === 'asr'
+      );
+    }
+    
+    // If still not found, use the first available caption
+    if (!selectedCaption) {
+      selectedCaption = captionsData.items[0];
+      console.log(`Using fallback language: ${selectedCaption.snippet.language}`);
+    }
+    
+    // Download the caption content
+    const captionDownloadUrl = `https://www.googleapis.com/youtube/v3/captions/${selectedCaption.id}?key=${youtubeApiKey}&tfmt=srt`;
+    
+    const captionResponse = await fetch(captionDownloadUrl);
+    if (!captionResponse.ok) {
+      console.log('Failed to download caption content');
+      return null;
+    }
+    
+    const srtContent = await captionResponse.text();
+    return parseSRTContent(srtContent);
+    
   } catch (error) {
     console.error('Error fetching YouTube transcript:', error);
     return null;
   }
 }
 
-function processTranscriptData(events: any[]): { transcript: string; transcriptWithTimestamps: string } {
+function parseSRTContent(srtContent: string): { transcript: string; transcriptWithTimestamps: string } {
+  const lines = srtContent.trim().split('\n\n');
   const transcriptEntries: TranscriptEntry[] = [];
   
-  for (const event of events) {
-    if (event.segs) {
-      const startTime = parseFloat(event.tStartMs) / 1000;
-      const duration = parseFloat(event.dDurationMs) / 1000;
+  for (const block of lines) {
+    const blockLines = block.trim().split('\n');
+    if (blockLines.length >= 3) {
+      // Skip the sequence number (first line)
+      const timecodeLine = blockLines[1];
+      const textLines = blockLines.slice(2);
       
-      for (const seg of event.segs) {
-        if (seg.utf8) {
+      // Parse timecode (e.g., "00:00:01,234 --> 00:00:04,567")
+      const timeMatch = timecodeLine.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+      if (timeMatch) {
+        const hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        const seconds = parseInt(timeMatch[3]);
+        const milliseconds = parseInt(timeMatch[4]);
+        
+        const startTime = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+        const text = textLines.join(' ').replace(/<[^>]*>/g, '').trim(); // Remove HTML tags
+        
+        if (text) {
           transcriptEntries.push({
-            text: seg.utf8.trim(),
+            text,
             start: startTime,
-            duration: duration
+            duration: 0 // Duration not needed for SRT parsing
           });
         }
       }
@@ -103,15 +143,15 @@ function processTranscriptData(events: any[]): { transcript: string; transcriptW
   const transcript = transcriptEntries
     .map(entry => entry.text)
     .join(' ')
-    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
   
   // Create transcript with timestamps
   const transcriptWithTimestamps = transcriptEntries
     .map(entry => {
-      const minutes = Math.floor(entry.start / 60);
+      const totalMinutes = Math.floor(entry.start / 60);
       const seconds = Math.floor(entry.start % 60);
-      const timestamp = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      const timestamp = `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
       return `[${timestamp}] ${entry.text}`;
     })
     .join('\n');
