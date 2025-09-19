@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
 interface Video {
   id: string;
   video_id: string;
@@ -19,24 +18,24 @@ interface Video {
   thumbnail_url: string | null;
   transcript: string | null;
 }
-
 interface VideoTranscriptModalProps {
   video: Video | null;
   onClose: () => void;
   onVideoDeleted?: () => void;
 }
-
-export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTranscriptModalProps) {
+export function VideoTranscriptModal({
+  video,
+  onClose,
+  onVideoDeleted
+}: VideoTranscriptModalProps) {
   const [localTranscript, setLocalTranscript] = useState<string>('');
   const [debugLog, setDebugLog] = useState<string>('');
   const [isFetching, setIsFetching] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
   useEffect(() => {
     if (!video) return;
     setLocalTranscript(video.transcript || '');
   }, [video]);
-
   useEffect(() => {
     const fetchIfEmpty = async () => {
       if (!video) return;
@@ -45,8 +44,14 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
       setDebugLog('Nessuna trascrizione in DB. Avvio recupero da YouTube...');
       try {
         const url = `https://www.youtube.com/watch?v=${video.video_id}`;
-        const { data, error } = await supabase.functions.invoke('youtube-video-info', {
-          body: { url, languageCode: 'it' },
+        const {
+          data,
+          error
+        } = await supabase.functions.invoke('youtube-video-info', {
+          body: {
+            url,
+            languageCode: 'it'
+          }
         });
         if (error) {
           setDebugLog(`Errore funzione: ${error.message}`);
@@ -64,10 +69,11 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
         } else {
           setDebugLog('Trascrizione recuperata. Salvo nel DB...');
           setLocalTranscript(t);
-          const { error: updateErr } = await supabase
-            .from('videos')
-            .update({ transcript: t })
-            .eq('id', video.id);
+          const {
+            error: updateErr
+          } = await supabase.from('videos').update({
+            transcript: t
+          }).eq('id', video.id);
           if (updateErr) {
             setDebugLog(`Errore salvataggio DB: ${updateErr.message}`);
           } else {
@@ -84,26 +90,20 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
     fetchIfEmpty();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video?.id]);
-
   const handleDeleteVideo = async () => {
     if (!video) return;
-    
     const confirmDelete = window.confirm(`Sei sicuro di voler cancellare il video "${video.title}"?`);
     if (!confirmDelete) return;
-
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('videos')
-        .delete()
-        .eq('id', video.id);
-
+      const {
+        error
+      } = await supabase.from('videos').delete().eq('id', video.id);
       if (error) {
         console.error('Error deleting video:', error);
         toast.error('Errore nella cancellazione del video');
         return;
       }
-
       toast.success('Video cancellato con successo');
       onClose();
       onVideoDeleted?.();
@@ -114,9 +114,7 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
       setIsDeleting(false);
     }
   };
-
   if (!video) return null;
-
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -127,49 +125,39 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
     const year = date.getFullYear();
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
-    
     return `${weekday} ${day}.${month}.${year} ${hours}:${minutes}`;
   };
-
   const openYouTubeVideo = () => {
     const youtubeUrl = `https://www.youtube.com/watch?v=${video.video_id}`;
     console.log('Opening YouTube URL:', youtubeUrl);
     window.open(youtubeUrl, '_blank');
   };
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="w-full max-w-4xl max-h-[90vh] bg-background rounded-2xl shadow-2xl overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
+  return <AnimatePresence>
+      <motion.div initial={{
+      opacity: 0
+    }} animate={{
+      opacity: 1
+    }} exit={{
+      opacity: 0
+    }} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={onClose}>
+        <motion.div initial={{
+        opacity: 0,
+        scale: 0.95,
+        y: 20
+      }} animate={{
+        opacity: 1,
+        scale: 1,
+        y: 0
+      }} exit={{
+        opacity: 0,
+        scale: 0.95,
+        y: 20
+      }} className="w-full max-w-4xl max-h-[90vh] bg-background rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
           {/* Header */}
           <div className="p-6 border-b border-ios-separator bg-ios-fill/20">
             <div className="flex items-start gap-4">
               {/* Video thumbnail as small icon */}
-              <div className="flex-shrink-0">
-                {video.thumbnail_url ? (
-                  <img
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    className="w-12 h-9 rounded object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-9 rounded bg-ios-fill flex items-center justify-center">
-                    <Youtube className="h-4 w-4 text-ios-label-secondary" />
-                  </div>
-                )}
-              </div>
+              
               
               {/* Content area */}
               <div className="flex-1 min-w-0">
@@ -177,21 +165,14 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs text-ios-label-secondary">
                     {video.published_at && formatDate(video.published_at)}
-                    {video.duration && (
-                      <span className="ml-3 inline-flex items-center gap-1">
+                    {video.duration && <span className="ml-3 inline-flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {video.duration}
-                      </span>
-                    )}
+                      </span>}
                   </div>
                   
                   {/* Close button */}
-                  <Button
-                    onClick={onClose}
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 rounded-full"
-                  >
+                  <Button onClick={onClose} variant="ghost" size="icon" className="h-6 w-6 rounded-full">
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
@@ -202,33 +183,21 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
                 </h2>
 
                 {/* Badges */}
-                {video.playlist_name && (
-                  <div className="mb-3">
+                {video.playlist_name && <div className="mb-3">
                     <Badge variant="secondary" className="text-xs">
                       <List className="h-3 w-3 mr-1" />
                       {video.playlist_name}
                     </Badge>
-                  </div>
-                )}
+                  </div>}
 
                 {/* Action buttons */}
                 <div className="flex gap-2">
-                  <Button
-                    onClick={openYouTubeVideo}
-                    size="sm"
-                    className="bg-red-500 hover:bg-red-600 text-white h-8 px-3 text-xs"
-                  >
+                  <Button onClick={openYouTubeVideo} size="sm" className="bg-red-500 hover:bg-red-600 text-white h-8 px-3 text-xs">
                     <Youtube className="h-3 w-3 mr-1" />
                     Guarda su YouTube
                   </Button>
                   
-                  <Button
-                    onClick={handleDeleteVideo}
-                    disabled={isDeleting}
-                    size="sm"
-                    variant="destructive"
-                    className="h-8 px-3 text-xs"
-                  >
+                  <Button onClick={handleDeleteVideo} disabled={isDeleting} size="sm" variant="destructive" className="h-8 px-3 text-xs">
                     <Trash2 className="h-3 w-3 mr-1" />
                     {isDeleting ? 'Cancellazione...' : 'Cancella Video'}
                   </Button>
@@ -246,28 +215,21 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
                 </h3>
               </div>
               
-              {debugLog && (
-                <div className="mb-4 flex items-start gap-2 text-amber-600">
+              {debugLog && <div className="mb-4 flex items-start gap-2 text-amber-600">
                   <AlertTriangle className="h-4 w-4 mt-1" />
                   <p className="text-sm whitespace-pre-wrap">{debugLog}</p>
-                </div>
-              )}
+                </div>}
               
               <div className="prose prose-sm max-w-none text-foreground">
-                {localTranscript ? (
-                  <p className="leading-relaxed whitespace-pre-wrap">
+                {localTranscript ? <p className="leading-relaxed whitespace-pre-wrap">
                     {localTranscript}
-                  </p>
-                ) : (
-                  <p className="text-ios-label-secondary italic">
+                  </p> : <p className="text-ios-label-secondary italic">
                     {isFetching ? 'Recupero trascrizione in corso...' : 'Trascrizione non disponibile per questo video.'}
-                  </p>
-                )}
+                  </p>}
               </div>
             </Card>
           </ScrollArea>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
-  );
+    </AnimatePresence>;
 }
