@@ -71,6 +71,92 @@ export type Database = {
         }
         Relationships: []
       }
+      videos: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration: string | null
+          id: string
+          playlist_name: string | null
+          published_at: string | null
+          thumbnail_url: string | null
+          title: string
+          transcript: string | null
+          updated_at: string
+          user_id: string
+          video_id: string
+          youtuber_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          playlist_name?: string | null
+          published_at?: string | null
+          thumbnail_url?: string | null
+          title: string
+          transcript?: string | null
+          updated_at?: string
+          user_id: string
+          video_id: string
+          youtuber_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          playlist_name?: string | null
+          published_at?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          transcript?: string | null
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+          youtuber_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_youtuber_id_fkey"
+            columns: ["youtuber_id"]
+            isOneToOne: false
+            referencedRelation: "youtubers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtubers: {
+        Row: {
+          channel_avatar_url: string | null
+          channel_id: string
+          channel_name: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_avatar_url?: string | null
+          channel_id: string
+          channel_name: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_avatar_url?: string | null
+          channel_id?: string
+          channel_name?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
