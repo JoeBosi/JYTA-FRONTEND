@@ -56,17 +56,19 @@ export function YouTuberCard({ youtuber, onVideoSelect }: YouTuberCardProps) {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {youtuber.channel_avatar_url && (
-                <img
-                  src={youtuber.channel_avatar_url}
-                  alt={youtuber.channel_name}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
-              )}
               <div>
-                <h3 className="font-semibold text-foreground text-lg">
-                  {youtuber.channel_name}
-                </h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-foreground text-lg">
+                    {youtuber.channel_name}
+                  </h3>
+                  {youtuber.channel_avatar_url && (
+                    <img
+                      src={youtuber.channel_avatar_url}
+                      alt={youtuber.channel_name}
+                      className="w-6 h-6 rounded-full object-cover"
+                    />
+                  )}
+                </div>
                 <p className="text-ios-label-secondary text-sm">
                   {youtuber.videos.length} video{youtuber.videos.length !== 1 ? 's' : ''}
                 </p>
