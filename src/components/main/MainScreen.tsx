@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { TextFieldForm } from './TextFieldForm';
+import { NoteModal } from './NoteModal';
 
 interface TextField {
   id: string;
@@ -23,6 +24,7 @@ export function MainScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingField, setEditingField] = useState<TextField | null>(null);
+  const [selectedField, setSelectedField] = useState<TextField | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -155,7 +157,10 @@ export function MainScreen() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <Card className="p-4 bg-card/80 backdrop-blur-sm border-ios-separator hover:shadow-ios transition-all duration-200 cursor-pointer group">
+                    <Card 
+                      className="p-4 bg-card/80 backdrop-blur-sm border-ios-separator hover:shadow-ios transition-all duration-200 cursor-pointer group"
+                      onClick={() => setSelectedField(field)}
+                    >
                       {field.photo_url && (
                         <div className="mb-3 rounded-lg overflow-hidden">
                           <img
@@ -266,6 +271,18 @@ export function MainScreen() {
           />
         )}
       </AnimatePresence>
+
+      {/* Note Reading Modal */}
+      <NoteModal
+        field={selectedField}
+        onClose={() => setSelectedField(null)}
+        onEdit={(field) => {
+          setEditingField(field);
+          setSelectedField(null);
+          setShowForm(true);
+        }}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }
