@@ -9,3 +9,6 @@ max_rows = 1000
 
 [functions.youtube-video-info]
 verify_jwt = false
+
+[functions.backfill-transcripts]
+verify_jwt = false

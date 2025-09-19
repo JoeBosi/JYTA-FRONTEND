@@ -49,57 +49,62 @@ function formatDuration(duration: string): string {
 
 async function fetchYouTubeTranscript(videoId: string, languageCode: string = 'it'): Promise<{ transcript: string; transcriptWithTimestamps: string } | null> {
   try {
-    const youtubeApiKey = Deno.env.get('YOUTUBE_API_KEY');
-    if (!youtubeApiKey) {
-      console.log('YouTube API key not found');
+    // Prefer the public timedtext endpoint (no OAuth needed)
+    const tryFetch = async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const text = await res.text();
+      if (!text || text.trim().length < 10) return null;
+      // If it's VTT, parse it
+      if (text.startsWith('WEBVTT')) {
+        return parseVTTContent(text);
+      }
+      // Try JSON3 (sometimes returns JSON)
+      try {
+        const json = JSON.parse(text);
+        if (json?.events) {
+          // Convert JSON3 events to VTT-like entries
+          const entries: TranscriptEntry[] = [];
+          for (const ev of json.events) {
+            if (!ev.segs) continue;
+            const start = (parseFloat(ev.tStartMs) || 0) / 1000;
+            const duration = (parseFloat(ev.dDurationMs) || 0) / 1000;
+            const txt = ev.segs.map((s: any) => s.utf8).join('').trim();
+            if (txt) entries.push({ text: txt, start, duration });
+          }
+          const transcript = entries.map(e => e.text).join(' ').replace(/\s+/g, ' ').trim();
+          const transcriptWithTimestamps = entries
+            .map(e => {
+              const m = Math.floor(e.start / 60);
+              const s = Math.floor(e.start % 60);
+              return `[${m}:${s.toString().padStart(2, '0')}] ${e.text}`;
+            })
+            .join('\n');
+          return { transcript, transcriptWithTimestamps };
+        }
+      } catch (_) {
+        // Not JSON, ignore
+      }
       return null;
+    };
+
+    // Attempts order: direct lang VTT, direct lang JSON3, translated VTT, translated JSON3
+    const attempts = [
+      `https://www.youtube.com/api/timedtext?lang=${languageCode}&v=${videoId}&fmt=vtt`,
+      `https://www.youtube.com/api/timedtext?lang=${languageCode}&v=${videoId}&fmt=json3`,
+      `https://www.youtube.com/api/timedtext?lang=${languageCode}&tlang=${languageCode}&v=${videoId}&fmt=vtt`,
+      `https://www.youtube.com/api/timedtext?lang=${languageCode}&tlang=${languageCode}&v=${videoId}&fmt=json3`,
+    ];
+
+    for (const url of attempts) {
+      const parsed = await tryFetch(url);
+      if (parsed && parsed.transcript && parsed.transcript.length > 0) {
+        return parsed;
+      }
     }
 
-    // First, get the list of available captions
-    const captionsListUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${youtubeApiKey}`;
-    
-    const captionsResponse = await fetch(captionsListUrl);
-    if (!captionsResponse.ok) {
-      console.log('Failed to fetch captions list');
-      return null;
-    }
-    
-    const captionsData = await captionsResponse.json();
-    if (!captionsData.items || captionsData.items.length === 0) {
-      console.log('No captions available for this video');
-      return null;
-    }
-    
-    // Find the desired language or fallback to first available
-    let selectedCaption = captionsData.items.find((caption: any) => 
-      caption.snippet.language === languageCode
-    );
-    
-    // If not found, try auto-generated captions
-    if (!selectedCaption) {
-      selectedCaption = captionsData.items.find((caption: any) => 
-        caption.snippet.language === languageCode && caption.snippet.trackKind === 'asr'
-      );
-    }
-    
-    // If still not found, use the first available caption
-    if (!selectedCaption) {
-      selectedCaption = captionsData.items[0];
-      console.log(`Using fallback language: ${selectedCaption.snippet.language}`);
-    }
-    
-    // Download the caption content
-    const captionDownloadUrl = `https://www.googleapis.com/youtube/v3/captions/${selectedCaption.id}?key=${youtubeApiKey}&tfmt=srt`;
-    
-    const captionResponse = await fetch(captionDownloadUrl);
-    if (!captionResponse.ok) {
-      console.log('Failed to download caption content');
-      return null;
-    }
-    
-    const srtContent = await captionResponse.text();
-    return parseSRTContent(srtContent);
-    
+    console.log('Transcript not found via timedtext for video:', videoId);
+    return null;
   } catch (error) {
     console.error('Error fetching YouTube transcript:', error);
     return null;
@@ -156,6 +161,54 @@ function parseSRTContent(srtContent: string): { transcript: string; transcriptWi
     })
     .join('\n');
   
+  return { transcript, transcriptWithTimestamps };
+}
+
+function parseVTTContent(vttContent: string): { transcript: string; transcriptWithTimestamps: string } {
+  const lines = vttContent.split('\n');
+  const transcriptEntries: TranscriptEntry[] = [];
+  let currentStart = 0;
+  let buffer: string[] = [];
+
+  const flush = () => {
+    const text = buffer.join(' ').replace(/<[^>]*>/g, '').trim();
+    if (text) {
+      transcriptEntries.push({ text, start: currentStart, duration: 0 });
+    }
+    buffer = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    // Timecode like 00:01.000 --> 00:05.000 or 00:00:01.000 --> 00:00:05.000
+    const timeMatch = line.match(/(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{3})\s+--\>\s+(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{3})/);
+    if (timeMatch) {
+      // On new timecode, flush previous buffer
+      if (buffer.length) flush();
+      const h = parseInt(timeMatch[1] || '0');
+      const m = parseInt(timeMatch[2]);
+      const s = parseInt(timeMatch[3]);
+      const ms = parseInt(timeMatch[4]);
+      currentStart = h * 3600 + m * 60 + s + ms / 1000;
+      continue;
+    }
+
+    // Accumulate text lines
+    if (line !== 'WEBVTT') buffer.push(line);
+  }
+  if (buffer.length) flush();
+
+  const transcript = transcriptEntries.map(e => e.text).join(' ').replace(/\s+/g, ' ').trim();
+  const transcriptWithTimestamps = transcriptEntries
+    .map(e => {
+      const m = Math.floor(e.start / 60);
+      const s = Math.floor(e.start % 60);
+      return `[${m}:${s.toString().padStart(2, '0')}] ${e.text}`;
+    })
+    .join('\n');
+
   return { transcript, transcriptWithTimestamps };
 }
 

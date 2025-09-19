@@ -54,6 +54,7 @@ export function MainScreen() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [activeTab, setActiveTab] = useState<'notes' | 'youtube'>('youtube');
   const [loading, setLoading] = useState(true);
+  const [backfillDone, setBackfillDone] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -100,6 +101,26 @@ export function MainScreen() {
 
       if (error) throw error;
       setYoutubers(data || []);
+
+      // Trigger a one-time backfill for this user
+      if (!backfillDone && user) {
+        try {
+          const { error: fnError } = await supabase.functions.invoke('backfill-transcripts', {
+            body: { userId: user.id, languageCode: 'it' },
+          });
+          if (!fnError) {
+            setBackfillDone(true);
+            // Refresh after backfill
+            const { data: refreshed } = await supabase
+              .from('youtubers')
+              .select(`*, videos ( id, video_id, title, description, duration, published_at, playlist_name, thumbnail_url, transcript )`)
+              .order('updated_at', { ascending: false });
+            if (refreshed) setYoutubers(refreshed);
+          }
+        } catch (e) {
+          console.error('Backfill trigger error:', e);
+        }
+      }
     } catch (error) {
       console.error('Error fetching youtubers:', error);
     }
