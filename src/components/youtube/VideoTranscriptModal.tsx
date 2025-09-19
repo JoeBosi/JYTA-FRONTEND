@@ -119,11 +119,16 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('it-IT', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    const date = new Date(dateString);
+    const weekdays = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+    const weekday = weekdays[date.getDay()];
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    
+    return `${weekday} ${day}.${month}.${year} ${hours}:${minutes}`;
   };
 
   const openYouTubeVideo = () => {
@@ -150,33 +155,48 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
         >
           {/* Header */}
           <div className="p-6 border-b border-ios-separator bg-ios-fill/20">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              {/* Video thumbnail as small icon */}
+              {video.thumbnail_url && (
+                <div className="flex-shrink-0">
+                  <img
+                    src={video.thumbnail_url}
+                    alt={video.title}
+                    className="w-16 h-12 rounded-lg object-cover"
+                  />
+                </div>
+              )}
+              
+              {/* Title and info */}
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold text-foreground mb-2 line-clamp-2">
+                <h2 className="text-lg font-bold text-foreground mb-1 line-clamp-2">
                   {video.title}
                 </h2>
                 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {video.duration && (
-                    <Badge variant="secondary">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {video.duration}
-                    </Badge>
-                  )}
+                {/* Date and duration info */}
+                <div className="flex items-center gap-3 text-sm text-ios-label-secondary mb-3">
                   {video.published_at && (
-                    <Badge variant="secondary">
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {formatDate(video.published_at)}
-                    </Badge>
+                    <span>{formatDate(video.published_at)}</span>
                   )}
+                  {video.duration && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {video.duration}
+                    </span>
+                  )}
+                </div>
+
+                {/* Badges */}
+                <div className="flex flex-wrap gap-2 mb-3">
                   {video.playlist_name && (
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="text-xs">
                       <List className="h-3 w-3 mr-1" />
                       {video.playlist_name}
                     </Badge>
                   )}
                 </div>
 
+                {/* Action buttons */}
                 <div className="flex gap-2">
                   <Button
                     onClick={openYouTubeVideo}
@@ -200,16 +220,7 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
                 </div>
               </div>
               
-              {video.thumbnail_url && (
-                <div className="flex-shrink-0">
-                  <img
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    className="w-32 h-20 rounded-lg object-cover"
-                  />
-                </div>
-              )}
-              
+              {/* Close button */}
               <Button
                 onClick={onClose}
                 variant="ghost"
