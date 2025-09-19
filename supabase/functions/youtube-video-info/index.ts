@@ -17,6 +17,14 @@ interface VideoInfo {
   channelTitle: string;
   playlistId?: string;
   playlistTitle?: string;
+  transcript?: string;
+  transcriptWithTimestamps?: string;
+}
+
+interface TranscriptEntry {
+  text: string;
+  start: number;
+  duration: number;
 }
 
 function extractVideoId(url: string): string | null {
@@ -39,6 +47,78 @@ function formatDuration(duration: string): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+async function fetchYouTubeTranscript(videoId: string, languageCode: string = 'it'): Promise<{ transcript: string; transcriptWithTimestamps: string } | null> {
+  try {
+    // Try to get transcript using YouTube's captions API
+    const captionsUrl = `https://www.youtube.com/api/timedtext?lang=${languageCode}&v=${videoId}&fmt=json3`;
+    
+    const response = await fetch(captionsUrl);
+    if (!response.ok) {
+      console.log(`Transcript not available for language ${languageCode}, trying auto-generated`);
+      
+      // Try with auto-generated captions
+      const autoResponse = await fetch(`https://www.youtube.com/api/timedtext?lang=${languageCode}&v=${videoId}&fmt=json3&tlang=${languageCode}`);
+      if (!autoResponse.ok) {
+        console.log('No auto-generated transcript available');
+        return null;
+      }
+      
+      const autoData = await autoResponse.json();
+      if (!autoData?.events) return null;
+      
+      return processTranscriptData(autoData.events);
+    }
+    
+    const data = await response.json();
+    if (!data?.events) return null;
+    
+    return processTranscriptData(data.events);
+  } catch (error) {
+    console.error('Error fetching YouTube transcript:', error);
+    return null;
+  }
+}
+
+function processTranscriptData(events: any[]): { transcript: string; transcriptWithTimestamps: string } {
+  const transcriptEntries: TranscriptEntry[] = [];
+  
+  for (const event of events) {
+    if (event.segs) {
+      const startTime = parseFloat(event.tStartMs) / 1000;
+      const duration = parseFloat(event.dDurationMs) / 1000;
+      
+      for (const seg of event.segs) {
+        if (seg.utf8) {
+          transcriptEntries.push({
+            text: seg.utf8.trim(),
+            start: startTime,
+            duration: duration
+          });
+        }
+      }
+    }
+  }
+  
+  // Create plain transcript
+  const transcript = transcriptEntries
+    .map(entry => entry.text)
+    .join(' ')
+    .replace(/\n+/g, ' ')
+    .trim();
+  
+  // Create transcript with timestamps
+  const transcriptWithTimestamps = transcriptEntries
+    .map(entry => {
+      const minutes = Math.floor(entry.start / 60);
+      const seconds = Math.floor(entry.start % 60);
+      const timestamp = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      return `[${timestamp}] ${entry.text}`;
+    })
+    .join('\n');
+  
+  return { transcript, transcriptWithTimestamps };
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -46,7 +126,7 @@ serve(async (req) => {
   }
 
   try {
-    const { url } = await req.json();
+    const { url, languageCode = 'it' } = await req.json();
     
     if (!url) {
       return new Response(
@@ -65,12 +145,71 @@ serve(async (req) => {
     }
 
     const youtubeApiKey = Deno.env.get('YOUTUBE_API_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
     if (!youtubeApiKey) {
       console.error('YouTube API key not configured');
       return new Response(
         JSON.stringify({ error: 'API YouTube non configurata' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Supabase configuration missing');
+      return new Response(
+        JSON.stringify({ error: 'Configurazione Supabase mancante' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check if transcript already exists in database
+    const { data: existingTranscript, error: transcriptError } = await supabase
+      .from('transcripts')
+      .select('transcript_text, transcript_with_timestamps')
+      .eq('video_id', videoId)
+      .eq('language_code', languageCode)
+      .maybeSingle();
+
+    let transcript = '';
+    let transcriptWithTimestamps = '';
+
+    if (existingTranscript && !transcriptError) {
+      console.log('Found existing transcript in database for video:', videoId);
+      transcript = existingTranscript.transcript_text || '';
+      transcriptWithTimestamps = existingTranscript.transcript_with_timestamps || '';
+    } else {
+      console.log('Fetching new transcript from YouTube for video:', videoId);
+      
+      // Fetch transcript from YouTube
+      const transcriptData = await fetchYouTubeTranscript(videoId, languageCode);
+      
+      if (transcriptData) {
+        transcript = transcriptData.transcript;
+        transcriptWithTimestamps = transcriptData.transcriptWithTimestamps;
+        
+        // Save transcript to database
+        const { error: insertError } = await supabase
+          .from('transcripts')
+          .upsert({
+            video_id: videoId,
+            language_code: languageCode,
+            transcript_text: transcript,
+            transcript_with_timestamps: transcriptWithTimestamps
+          });
+
+        if (insertError) {
+          console.error('Error saving transcript to database:', insertError);
+        } else {
+          console.log('Transcript saved to database successfully');
+        }
+      } else {
+        console.log('No transcript available for this video');
+      }
     }
 
     // Get video details from YouTube API
@@ -138,6 +277,8 @@ serve(async (req) => {
       channelTitle: snippet.channelTitle,
       playlistId: snippet.playlistId,
       playlistTitle: playlistTitle || undefined,
+      transcript: transcript || undefined,
+      transcriptWithTimestamps: transcriptWithTimestamps || undefined,
     };
 
     console.log('Video info retrieved successfully:', videoInfo.title);

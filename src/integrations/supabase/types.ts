@@ -71,6 +71,36 @@ export type Database = {
         }
         Relationships: []
       }
+      transcripts: {
+        Row: {
+          created_at: string
+          id: string
+          language_code: string
+          transcript_text: string
+          transcript_with_timestamps: string | null
+          updated_at: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language_code?: string
+          transcript_text: string
+          transcript_with_timestamps?: string | null
+          updated_at?: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language_code?: string
+          transcript_text?: string
+          transcript_with_timestamps?: string | null
+          updated_at?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
       videos: {
         Row: {
           created_at: string
