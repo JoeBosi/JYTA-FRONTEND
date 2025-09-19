@@ -35,7 +35,9 @@ export function VideoTranscriptModal({ video, onClose }: VideoTranscriptModalPro
   };
 
   const openYouTubeVideo = () => {
-    window.open(`https://www.youtube.com/watch?v=${video.video_id}`, '_blank');
+    const youtubeUrl = `https://www.youtube.com/watch?v=${video.video_id}`;
+    console.log('Opening YouTube URL:', youtubeUrl);
+    window.open(youtubeUrl, '_blank');
   };
 
   return (
