@@ -234,10 +234,12 @@ export function MainScreen() {
                 <div className="space-y-4">
                   {youtubers
                     .filter(youtuber => 
-                      !searchQuery || 
-                      youtuber.channel_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      youtuber.videos.some(video => 
-                        video.title.toLowerCase().includes(searchQuery.toLowerCase())
+                      youtuber.videos && youtuber.videos.length > 0 && (
+                        !searchQuery || 
+                        youtuber.channel_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        youtuber.videos.some(video => 
+                          video.title.toLowerCase().includes(searchQuery.toLowerCase())
+                        )
                       )
                     )
                     .map((youtuber) => (

@@ -181,9 +181,9 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
                   <Button
                     onClick={openYouTubeVideo}
                     size="sm"
-                    className="bg-red-500 hover:bg-red-600 text-white"
+                    className="bg-red-500 hover:bg-red-600 text-white h-8 px-3 text-xs"
                   >
-                    <Youtube className="h-4 w-4 mr-2" />
+                    <Youtube className="h-3 w-3 mr-1" />
                     Guarda su YouTube
                   </Button>
                   
@@ -192,8 +192,9 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
                     disabled={isDeleting}
                     size="sm"
                     variant="destructive"
+                    className="h-8 px-3 text-xs"
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
+                    <Trash2 className="h-3 w-3 mr-1" />
                     {isDeleting ? 'Cancellazione...' : 'Cancella Video'}
                   </Button>
                 </div>
