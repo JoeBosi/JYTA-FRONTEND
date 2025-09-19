@@ -427,6 +427,10 @@ export function MainScreen() {
       <VideoTranscriptModal
         video={selectedVideo}
         onClose={() => setSelectedVideo(null)}
+        onVideoDeleted={() => {
+          fetchYoutubers();
+          setSelectedVideo(null);
+        }}
       />
     </div>
   );

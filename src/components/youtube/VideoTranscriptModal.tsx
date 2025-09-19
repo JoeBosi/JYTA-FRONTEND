@@ -1,9 +1,12 @@
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Clock, List, Youtube } from 'lucide-react';
+import { X, Calendar, Clock, List, Youtube, AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Video {
   id: string;
@@ -20,9 +23,98 @@ interface Video {
 interface VideoTranscriptModalProps {
   video: Video | null;
   onClose: () => void;
+  onVideoDeleted?: () => void;
 }
 
-export function VideoTranscriptModal({ video, onClose }: VideoTranscriptModalProps) {
+export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTranscriptModalProps) {
+  const [localTranscript, setLocalTranscript] = useState<string>('');
+  const [debugLog, setDebugLog] = useState<string>('');
+  const [isFetching, setIsFetching] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!video) return;
+    setLocalTranscript(video.transcript || '');
+  }, [video]);
+
+  useEffect(() => {
+    const fetchIfEmpty = async () => {
+      if (!video) return;
+      if (localTranscript && localTranscript.trim().length > 0) return;
+      setIsFetching(true);
+      setDebugLog('Nessuna trascrizione in DB. Avvio recupero da YouTube...');
+      try {
+        const url = `https://www.youtube.com/watch?v=${video.video_id}`;
+        const { data, error } = await supabase.functions.invoke('youtube-video-info', {
+          body: { url, languageCode: 'it' },
+        });
+        if (error) {
+          setDebugLog(`Errore funzione: ${error.message}`);
+          toast.error('Errore nel recupero trascrizione');
+          return;
+        }
+        if (!data?.success) {
+          setDebugLog(`Risposta non valida dalla funzione: ${JSON.stringify(data)}`);
+          toast.error('Trascrizione non disponibile');
+          return;
+        }
+        const t = data.data?.transcript || '';
+        if (!t) {
+          setDebugLog('Funzione completata ma nessuna trascrizione trovata.');
+        } else {
+          setDebugLog('Trascrizione recuperata. Salvo nel DB...');
+          setLocalTranscript(t);
+          const { error: updateErr } = await supabase
+            .from('videos')
+            .update({ transcript: t })
+            .eq('id', video.id);
+          if (updateErr) {
+            setDebugLog(`Errore salvataggio DB: ${updateErr.message}`);
+          } else {
+            setDebugLog('Trascrizione salvata con successo.');
+          }
+        }
+      } catch (e: any) {
+        setDebugLog(`Eccezione: ${String(e?.message || e)}`);
+        toast.error('Errore inatteso nel recupero trascrizione');
+      } finally {
+        setIsFetching(false);
+      }
+    };
+    fetchIfEmpty();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video?.id]);
+
+  const handleDeleteVideo = async () => {
+    if (!video) return;
+    
+    const confirmDelete = window.confirm(`Sei sicuro di voler cancellare il video "${video.title}"?`);
+    if (!confirmDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('videos')
+        .delete()
+        .eq('id', video.id);
+
+      if (error) {
+        console.error('Error deleting video:', error);
+        toast.error('Errore nella cancellazione del video');
+        return;
+      }
+
+      toast.success('Video cancellato con successo');
+      onClose();
+      onVideoDeleted?.();
+    } catch (error) {
+      console.error('Error deleting video:', error);
+      toast.error('Errore nella cancellazione del video');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (!video) return null;
 
   const formatDate = (dateString: string | null) => {
@@ -94,6 +186,16 @@ export function VideoTranscriptModal({ video, onClose }: VideoTranscriptModalPro
                     <Youtube className="h-4 w-4 mr-2" />
                     Guarda su YouTube
                   </Button>
+                  
+                  <Button
+                    onClick={handleDeleteVideo}
+                    disabled={isDeleting}
+                    size="sm"
+                    variant="destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isDeleting ? 'Cancellazione...' : 'Cancella Video'}
+                  </Button>
                 </div>
               </div>
               
@@ -127,14 +229,21 @@ export function VideoTranscriptModal({ video, onClose }: VideoTranscriptModalPro
                 </h3>
               </div>
               
+              {debugLog && (
+                <div className="mb-4 flex items-start gap-2 text-amber-600">
+                  <AlertTriangle className="h-4 w-4 mt-1" />
+                  <p className="text-sm whitespace-pre-wrap">{debugLog}</p>
+                </div>
+              )}
+              
               <div className="prose prose-sm max-w-none text-foreground">
-                {video.transcript ? (
+                {localTranscript ? (
                   <p className="leading-relaxed whitespace-pre-wrap">
-                    {video.transcript}
+                    {localTranscript}
                   </p>
                 ) : (
                   <p className="text-ios-label-secondary italic">
-                    Trascrizione non disponibile per questo video.
+                    {isFetching ? 'Recupero trascrizione in corso...' : 'Trascrizione non disponibile per questo video.'}
                   </p>
                 )}
               </div>
