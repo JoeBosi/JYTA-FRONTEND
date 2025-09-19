@@ -157,44 +157,59 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
           <div className="p-6 border-b border-ios-separator bg-ios-fill/20">
             <div className="flex items-start gap-4">
               {/* Video thumbnail as small icon */}
-              {video.thumbnail_url && (
-                <div className="flex-shrink-0">
+              <div className="flex-shrink-0">
+                {video.thumbnail_url ? (
                   <img
                     src={video.thumbnail_url}
                     alt={video.title}
-                    className="w-16 h-12 rounded-lg object-cover"
+                    className="w-12 h-9 rounded object-cover"
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="w-12 h-9 rounded bg-ios-fill flex items-center justify-center">
+                    <Youtube className="h-4 w-4 text-ios-label-secondary" />
+                  </div>
+                )}
+              </div>
               
-              {/* Title and info */}
+              {/* Content area */}
               <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-bold text-foreground mb-1 line-clamp-2">
+                {/* Date and time on top */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs text-ios-label-secondary">
+                    {video.published_at && formatDate(video.published_at)}
+                    {video.duration && (
+                      <span className="ml-3 inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {video.duration}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Close button */}
+                  <Button
+                    onClick={onClose}
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-full"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                
+                {/* Title aligned with thumbnail */}
+                <h2 className="text-base font-semibold text-foreground mb-3 line-clamp-2 leading-5">
                   {video.title}
                 </h2>
-                
-                {/* Date and duration info */}
-                <div className="flex items-center gap-3 text-sm text-ios-label-secondary mb-3">
-                  {video.published_at && (
-                    <span>{formatDate(video.published_at)}</span>
-                  )}
-                  {video.duration && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {video.duration}
-                    </span>
-                  )}
-                </div>
 
                 {/* Badges */}
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {video.playlist_name && (
+                {video.playlist_name && (
+                  <div className="mb-3">
                     <Badge variant="secondary" className="text-xs">
                       <List className="h-3 w-3 mr-1" />
                       {video.playlist_name}
                     </Badge>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Action buttons */}
                 <div className="flex gap-2">
@@ -219,16 +234,6 @@ export function VideoTranscriptModal({ video, onClose, onVideoDeleted }: VideoTr
                   </Button>
                 </div>
               </div>
-              
-              {/* Close button */}
-              <Button
-                onClick={onClose}
-                variant="ghost"
-                size="icon"
-                className="flex-shrink-0 h-8 w-8 rounded-full"
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
           </div>
 
