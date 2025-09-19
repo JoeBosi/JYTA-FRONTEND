@@ -47,18 +47,54 @@ function formatDuration(duration: string): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+async function fetchAvailableTranscriptLanguages(videoId: string): Promise<string[]> {
+  try {
+    // Try to get the list of available captions/transcripts
+    const response = await fetch(`https://www.youtube.com/api/timedtext?type=list&v=${videoId}`);
+    if (!response.ok) return [];
+    
+    const xmlText = await response.text();
+    console.log('Available transcripts XML:', xmlText.substring(0, 200));
+    
+    // Parse XML to extract language codes
+    const languageMatches = xmlText.match(/lang_code="([^"]+)"/g);
+    if (!languageMatches) return [];
+    
+    const languages = languageMatches.map(match => {
+      const langMatch = match.match(/lang_code="([^"]+)"/);
+      return langMatch ? langMatch[1] : null;
+    }).filter(Boolean) as string[];
+    
+    console.log('Found available transcript languages:', languages);
+    return languages;
+  } catch (error) {
+    console.error('Error fetching available transcript languages:', error);
+    return [];
+  }
+}
+
 async function fetchYouTubeTranscript(videoId: string, languageCode: string = 'it'): Promise<{ transcript: string; transcriptWithTimestamps: string } | null> {
   try {
-    // Prefer the public timedtext endpoint (no OAuth needed)
-    const tryFetch = async (url: string) => {
+    const tryFetch = async (url: string, description: string) => {
+      console.log(`Trying ${description}: ${url}`);
       const res = await fetch(url);
-      if (!res.ok) return null;
+      if (!res.ok) {
+        console.log(`Failed ${description}: ${res.status} ${res.statusText}`);
+        return null;
+      }
       const text = await res.text();
-      if (!text || text.trim().length < 10) return null;
+      if (!text || text.trim().length < 10) {
+        console.log(`Empty or too short response for ${description}`);
+        return null;
+      }
+      
+      console.log(`Got response for ${description}, length: ${text.length}, starts with: ${text.substring(0, 50)}`);
+      
       // If it's VTT, parse it
       if (text.startsWith('WEBVTT')) {
         return parseVTTContent(text);
       }
+      
       // Try JSON3 (sometimes returns JSON)
       try {
         const json = JSON.parse(text);
@@ -83,23 +119,71 @@ async function fetchYouTubeTranscript(videoId: string, languageCode: string = 'i
           return { transcript, transcriptWithTimestamps };
         }
       } catch (_) {
-        // Not JSON, ignore
+        // Not JSON, try as plain text
+        console.log(`Not JSON format for ${description}`);
       }
+      
+      // If it's just plain text, treat it as transcript
+      if (text.length > 50) {
+        console.log(`Using as plain text transcript for ${description}`);
+        return { 
+          transcript: text.replace(/\s+/g, ' ').trim(), 
+          transcriptWithTimestamps: text.trim() 
+        };
+      }
+      
       return null;
     };
 
-    // Attempts order: direct lang VTT, direct lang JSON3, translated VTT, translated JSON3
-    const attempts = [
-      `https://www.youtube.com/api/timedtext?lang=${languageCode}&v=${videoId}&fmt=vtt`,
-      `https://www.youtube.com/api/timedtext?lang=${languageCode}&v=${videoId}&fmt=json3`,
-      `https://www.youtube.com/api/timedtext?lang=${languageCode}&tlang=${languageCode}&v=${videoId}&fmt=vtt`,
-      `https://www.youtube.com/api/timedtext?lang=${languageCode}&tlang=${languageCode}&v=${videoId}&fmt=json3`,
-    ];
+    // First, get available languages
+    const availableLanguages = await fetchAvailableTranscriptLanguages(videoId);
+    
+    // Create list of languages to try, prioritizing requested language
+    const languagesToTry = [languageCode];
+    
+    // Add available languages, prioritizing Italian and English
+    for (const lang of availableLanguages) {
+      if (!languagesToTry.includes(lang)) {
+        if (lang === 'it' || lang === 'it-IT') {
+          languagesToTry.splice(1, 0, lang); // Insert after requested language
+        } else if (lang === 'en' || lang === 'en-US' || lang === 'en-GB') {
+          languagesToTry.push(lang);
+        } else {
+          languagesToTry.push(lang);
+        }
+      }
+    }
+    
+    console.log('Will try languages in order:', languagesToTry);
 
-    for (const url of attempts) {
-      const parsed = await tryFetch(url);
-      if (parsed && parsed.transcript && parsed.transcript.length > 0) {
-        return parsed;
+    // Try each language with multiple formats
+    for (const lang of languagesToTry) {
+      const attempts = [
+        { 
+          url: `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}&fmt=vtt`,
+          desc: `${lang} VTT format`
+        },
+        {
+          url: `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}&fmt=json3`,
+          desc: `${lang} JSON3 format`
+        },
+        {
+          url: `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}`,
+          desc: `${lang} default format`
+        },
+        // Try with translation if original language differs
+        ...(lang !== languageCode ? [{
+          url: `https://www.youtube.com/api/timedtext?lang=${lang}&tlang=${languageCode}&v=${videoId}&fmt=vtt`,
+          desc: `${lang} translated to ${languageCode} VTT`
+        }] : [])
+      ];
+
+      for (const attempt of attempts) {
+        const parsed = await tryFetch(attempt.url, attempt.desc);
+        if (parsed && parsed.transcript && parsed.transcript.length > 0) {
+          console.log(`Successfully got transcript using ${attempt.desc}`);
+          return parsed;
+        }
       }
     }
 
