@@ -47,6 +47,15 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // iOS Specific Colors
+        ios: {
+          surface: "hsl(var(--ios-surface))",
+          "surface-secondary": "hsl(var(--ios-surface-secondary))",
+          label: "hsl(var(--ios-label))",
+          "label-secondary": "hsl(var(--ios-label-secondary))",
+          separator: "hsl(var(--ios-separator))",
+          fill: "hsl(var(--ios-fill))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -62,6 +71,14 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        "ios": "var(--shadow-ios)",
+        "ios-large": "var(--shadow-ios-large)",
+      },
+      transitionTimingFunction: {
+        "ios": "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "spring": "cubic-bezier(0.175, 0.885, 0.32, 1.275)",
       },
       keyframes: {
         "accordion-down": {

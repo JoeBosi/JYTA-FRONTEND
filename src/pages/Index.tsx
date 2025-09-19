@@ -1,14 +1,19 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useAuth } from '@/hooks/useAuth';
+import { AuthScreen } from '@/components/auth/AuthScreen';
+import { MainScreen } from '@/components/main/MainScreen';
 
 const Index = () => {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-ios-surface to-ios-surface-secondary flex items-center justify-center">
+        <div className="animate-pulse text-ios-label-secondary">Loading...</div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return user ? <MainScreen /> : <AuthScreen />;
 };
 
 export default Index;
