@@ -124,7 +124,7 @@ export function YouTubeUrlForm({ onVideoAdded }: YouTubeUrlFormProps) {
           published_at: videoInfo.publishedAt,
           playlist_name: videoInfo.playlistTitle,
           thumbnail_url: videoInfo.thumbnailUrl,
-          transcript: 'Questo è un testo di esempio per il video. La trascrizione completa sarà implementata successivamente per fornire il contenuto completo del video.'
+          transcript: videoInfo.transcript || 'Trascrizione non disponibile per questo video.'
         });
 
       if (videoError) {
