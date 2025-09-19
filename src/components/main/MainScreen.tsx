@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Camera, Edit3, Trash2, LogOut, User } from 'lucide-react';
+import { Plus, Search, Camera, Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { TextFieldForm } from './TextFieldForm';
 import { NoteModal } from './NoteModal';
+import { IOSHeader } from '@/components/common/IOSHeader';
 
 interface TextField {
   id: string;
@@ -78,48 +79,22 @@ export function MainScreen() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-ios-surface to-ios-surface-secondary">
-      {/* Header */}
-      <header className="bg-card/80 backdrop-blur-xl border-b border-ios-separator sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground">My Notes</h1>
-              <p className="text-sm text-ios-label-secondary">
-                Welcome back, {user?.email}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full"
-              >
-                <User className="h-5 w-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={signOut}
-                className="h-10 w-10 rounded-full text-destructive"
-              >
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="mt-4 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ios-label-secondary h-5 w-5" />
-            <Input
-              type="text"
-              placeholder="Search your notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 bg-ios-fill border-ios-separator rounded-xl"
-            />
-          </div>
+      {/* iOS Header */}
+      <IOSHeader title="YTTS" showDevMenu={true} />
+      
+      {/* Search Bar */}
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ios-label-secondary h-5 w-5" />
+          <Input
+            type="text"
+            placeholder="Search your notes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 h-11 bg-ios-fill border-ios-separator rounded-xl"
+          />
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
