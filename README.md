@@ -1,73 +1,113 @@
-# Welcome to your Lovable project
+# JYTA-FRONTEND
+**Joe Youtube Transcript APP Frontend**
 
-## Project info
+A React/TypeScript frontend application for YouTube transcript management with Supabase integration.
 
-**URL**: https://lovable.dev/projects/b7c26499-6bbe-4df2-be48-f16300d17380
+## Project Overview
 
-## How can I edit this code?
+JYTA-FRONTEND is a modern web application built with React, TypeScript, and Vite that provides an interface for managing YouTube video transcripts. The application features authentication, note-taking capabilities, and YouTube video integration.
 
-There are several ways of editing your application.
+## Technologies Used
 
-**Use Lovable**
+- **Frontend**: React 18, TypeScript, Vite
+- **UI Components**: shadcn/ui, Tailwind CSS
+- **Backend**: Supabase (Database, Authentication, Functions)
+- **Package Manager**: npm/bun
+- **Development**: ESLint, PostCSS
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b7c26499-6bbe-4df2-be48-f16300d17380) and start prompting.
+## Features
 
-Changes made via Lovable will be committed automatically to this repo.
+- 🔐 User Authentication (Supabase Auth)
+- 📝 Note Management System
+- 🎥 YouTube Video Integration
+- 📱 Responsive Design
+- 🎨 Modern UI with shadcn/ui components
+- ⚡ Fast development with Vite
 
-**Use your preferred IDE**
+## Getting Started
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Node.js (v18 or higher)
+- npm or bun package manager
+- Supabase account and project
 
-Follow these steps:
+### Installation
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+1. Clone the repository:
+```bash
+git clone https://github.com/JoeBosi/JYTA-FRONTEND.git
+cd JYTA-FRONTEND
 ```
 
-**Edit a file directly in GitHub**
+2. Install dependencies:
+```bash
+npm install
+# or
+bun install
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+```
 
-**Use GitHub Codespaces**
+4. Start the development server:
+```bash
+npm run dev
+# or
+bun dev
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+The application will be available at `http://localhost:5173`
 
-## What technologies are used for this project?
+## Project Structure
 
-This project is built with:
+```
+src/
+├── components/          # React components
+│   ├── auth/           # Authentication components
+│   ├── common/         # Shared components
+│   ├── main/           # Main application components
+│   ├── ui/             # shadcn/ui components
+│   └── youtube/        # YouTube-specific components
+├── hooks/              # Custom React hooks
+├── integrations/       # External service integrations
+│   └── supabase/       # Supabase client and types
+├── lib/                # Utility functions
+└── pages/              # Page components
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Development
 
-## How can I deploy this project?
+### Available Scripts
 
-Simply open [Lovable](https://lovable.dev/projects/b7c26499-6bbe-4df2-be48-f16300d17380) and click on Share -> Publish.
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
 
-## Can I connect a custom domain to my Lovable project?
+### Supabase Setup
 
-Yes, you can!
+1. Create a new Supabase project
+2. Run the migrations in `supabase/migrations/`
+3. Set up the environment variables
+4. Configure Supabase functions if needed
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Contributing
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Commit your changes
+5. Push to the branch
+6. Create a Pull Request
+
+## Author
+
+**Giuseppe Bosi**
+
+## License
+
+This project is private and proprietary.
